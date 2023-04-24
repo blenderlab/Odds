@@ -258,88 +258,83 @@ void loop() {
 	rawCV = analogRead(cvInPin);
 
     // Check if there's a new trig on the trig input.
-    if(trig && !trigFlag){
-  
-      trigFlag = 1;
-
-      // Check if the main counter is higher than the current loop length, if so reset counter to zero.
-      if(ctr > loopLength){
-        ctr = 0;
-      }
-
-      // Main state machine, checks if LOOP switch is on or off.
-      switch(loopSwitch){
-
-        // If LOOP switch is OFF, generate new random notes.
-        case 0:
-			doPlay();
-			break;
-        // If LOOP switch is ON, enter looping mode!
-        case 1:
-			doLoop();
-			break;
-      }
-
-      // Increment the main counter.
-      ctr++;
+    if(trig && !trigFlag)
+    {
+		trigFlag = 1;
+		  // Check if the main counter is higher than the current loop length, if so reset counter to zero.
+		if(ctr > loopLength)
+		{
+			ctr = 0;
+		}
+		// Main state machine, checks if LOOP switch is on or off.
+		if (loopSwitch==0) doPlay();
+		if (loopSwitch==1) doLoop();
+		
+		// Increment the main counter.
+		ctr++;
     }
     
     // If there's not a trig on the trig input, update all potentiometers and set the appropriate values.
     // This is done here to prioritize timing and snappiness of the sequencer trigging.
-    else if(!trig && trigFlag){
-      trigFlag = 0;
-      // If there's not trig on the trig input, set the gate output to low.
+    else if(!trig && trigFlag)
+    {
+		trigFlag = 0;
+		// If there's not trig on the trig input, set the gate output to low.
 
-      digitalWrite(gatePin, LOW);
-	  probeProbability();
-	  probeScale();
-      probeLength();
+		digitalWrite(gatePin, LOW);
+		probeProbability();
+		probeScale();
+		probeLength();
 
-     // Check if there is change on the CV input. Set the CV input variable accordingly if so.
-      if(rawCV < prevRawCV - hysteresis || rawCV >= prevRawCV + hysteresis){ 
+		// Check if there is change on the CV input. Set the CV input variable accordingly if so.
+		if(rawCV < prevRawCV - hysteresis || rawCV >= prevRawCV + hysteresis)
+		{ 
+			// Check the lookup table for the CV input values. This is not linear due to circuitry on the PCB, therefore the need of look up table.
+			for (int i = 0; i <= 60; i++) 
+			{
+				// Check for values within a range of +/- 3.
+				if(rawCV > cvInputLookup[i] - 6 && rawCV < cvInputLookup[i] + 6)
+				{
+					// If the scale size is 7, move the F key up one key to compensate for the uneven math. This makes it possible to use only white keys when transposing.
+					if(scaleSize == 7 && (i == 5 || i == 17 || i == 29 || i == 41 || i == 53)){
+						i++; 
+					}
+					// Scale the CV input value to the size of the scale. This makes sure that octaves are always at whole Volts.
+					cvInput = i * scaleSize / 12;
 
-        // Check the lookup table for the CV input values. This is not linear due to circuitry on the PCB, therefore the need of look up table.
-        for (int i = 0; i <= 60; i++) {
-          // Check for values within a range of +/- 3.
-          if(rawCV > cvInputLookup[i] - 6 && rawCV < cvInputLookup[i] + 6){
-            // If the scale size is 7, move the F key up one key to compensate for the uneven math. This makes it possible to use only white keys when transposing.
-            if(scaleSize == 7 && (i == 5 || i == 17 || i == 29 || i == 41 || i == 53)){
-              i++; 
-            }
-            // Scale the CV input value to the size of the scale. This makes sure that octaves are always at whole Volts.
-            cvInput = i * scaleSize / 12;
-
-            // Flag that CV input has been changed, next note should be root note so it is easier to hear which chord is being played.
-            cvInputChanged = 1;
-            
-            break;
-          }
-        }
-        prevRawCV = rawCV;
-      }
+					// Flag that CV input has been changed, next note should be root note so it is easier to hear which chord is being played.
+					cvInputChanged = 1;
+					
+					break;
+				}
+			}
+			prevRawCV = rawCV;
+		}
     }
 
   
-  delay(1);
+	delay(1);
 
 }
+
 void doLoop(){
 	// Check if LOOP switch just was just pressed.
-	if(lastCase == 0){
-
+	if(lastCase == 0)
+	{
 		// Turn off the gate output to avoid wrong notes being played back.
 		digitalWrite(gatePin, bitRead(0, 7));
 
 		// Save the loop buffer to EEPROM in order to retrieve it at next power on. This only saves the length of loop length value.
-		for (int i = offset; i <= loopLength + offset; i++) {
-		  
-		  EEPROM.write(i % 64, loopBuffer[i % 64]);
+		for (int i = offset; i <= loopLength + offset; i++) 
+		{
+			EEPROM.write(i % 64, loopBuffer[i % 64]);
 		}
 
 		// Case detection.
 		lastCase = 1;
 	}
-	else{
+	else
+	{
 
 		// Read the stored seqeunce off the EEPROM and set GATE and CV outputs accordingly.
 		digitalWrite(gatePin, bitRead(EEPROM.read((ctr + offset) % 64), 7));
@@ -349,24 +344,32 @@ void doLoop(){
 		TCCR2B = _BV(WGM22) | _BV(CS20);
 		OCR2A = scaling;
 		OCR2B = 0;
-		OCR2B = (EEPROM.read(((ctr + offset) % 64) & bitmask) * factor);
+		OCR2B = (EEPROM.read(((ctr + offset) % 64) & bitmask) * factor);		
 	}
 }
 
 void doPlay(){
-   // Check if a random number between 0-100 is smaller than value of probability potentiometer.
-  if(random(101) < probability){
-
+	// Check if a random number between 0-100 is bigger than value of probability potentiometer.
+	if(random(101) > probability)
+	{
+		// If no note was generated, save the last generated note value to loopBuffer and set the gate output to low.
+		loopBuffer[ctr + offset] = note & bitmask;
+		bitWrite(loopBuffer[(ctr + offset) % 64], 7, 0);
+		return;
+	}
+  
 	// If CV input has not changed, generate a random note within the chosen chord structure.
-	if(cvInputChanged == 0){
+	if(cvInputChanged == 0)
+	{
 	  chord = ((random(chordStructure)/100)*chordMultiplier) + cvInput; //Chord structure
 	}
 	// If CV input has just changed, set the root note of the chord in this instance.
-	else{
+	else
+	{
 	  chord = 0 + cvInput; //Chord structure
 	  cvInputChanged = 0;
 	}
-	
+
 	// If CV input is used, this calculation makes sure that the scale is always held within the first octave.
 	scaleOffset = chord - ((chord / scaleSize)*scaleSize);
 
@@ -375,7 +378,7 @@ void doPlay(){
 
 	// Make the final note, and constrain it to maximum CV range (0-7 Volts or 0-84 notes)
 	note = constrain(makeNote + ((chord / scaleSize)*12), 0 , 84);
-	
+
 	// Save the note in loopBuffer and mask off the gate value in the LSB.
 	loopBuffer[(ctr + offset) % 64] = note & bitmask;
 
@@ -393,14 +396,7 @@ void doPlay(){
 	OCR2B = 0;
 	// Set the CV output to last generated note.
 	OCR2B = (note & bitmask) * factor;
-  }
-  else{
-	// If no note was generated, save the last generated note value to loopBuffer and set the gate output to low.
-	loopBuffer[ctr + offset] = note & bitmask;
-	bitWrite(loopBuffer[(ctr + offset) % 64], 7, 0);
-  }
-  lastCase = 0;
-
+	lastCase = 0;
  }
 
 void probeProbability(){
@@ -417,142 +413,93 @@ void probeProbability(){
   }
 
 void probeScale(){
-      // Check if there are movement on the scale potentiometer. Set Scale if there is, OR set Chord structure if SHIFT is held.
- 	if(rawScale < prevRawScale - hysteresis || rawScale >= prevRawScale + hysteresis){
-        if(shiftState){
-          potScalingChord(rawScale);
-        }
-        else{
-          scaleSelect = potScaling(rawScale) * 13;
-          scaleSize = scales[scaleSelect];
-        }
-        prevRawScale = rawScale;
-      }
+	  // Check if there are movement on the scale potentiometer. Set Scale if there is, OR set Chord structure if SHIFT is held.
+	if(rawScale < prevRawScale - hysteresis || rawScale >= prevRawScale + hysteresis
+	{
+		if(shiftState)
+		{
+		  potScalingChord(rawScale);
+		}
+		else
+		{
+		  scaleSelect = potScaling(rawScale) * 13;
+		  scaleSize = scales[scaleSelect];
+		}
+		prevRawScale = rawScale;
+	 }
 }
 
 void probeLength(){
      // Check if there are movement on the loop length potentiometer. Set Loop Length if there is, OR set Loop Offset if SHIFT is held.
- 	if(rawLoop < prevRawLoop - hysteresis || rawLoop >= prevRawLoop + hysteresis){
-        if(shiftState){
-          offset = map(rawLoop, 0, 1023, 0, 63);
-        }
-        else{
-          loopLength = potScaling13(rawLoop);
-        }
+ 	if(rawLoop < prevRawLoop - hysteresis || rawLoop >= prevRawLoop + hysteresis)
+	{
+        if(shiftState) 
+        {
+			offset = map(rawLoop, 0, 1023, 0, 63);
+        } else {
+			loopLength = potScaling13(rawLoop);
+		}
         prevRawLoop = rawLoop;
-      }
+     }
 }
 
 // Function for scaling potentiometers to panel graphics.
 int potScaling(int input){
-
-  int result;
-
-  if(input < 10){
-    result = 0;
-  }
-  else if( input < 175){
-    result = 1;  
-  }
-  else if(input < 375){
-    result = 2;  
-  }
-  else if(input < 600){
-    result = 3;  
-  }
-  else if(input < 800){
-    result = 4;  
-  }
-  else if(input < 1000){
-    result = 5;  
-  }
-  else {
-    result = 6;  
-  }
-
-  return result;
+  if(input < 10)   return 0;
+  if(input < 175)  return 1;  
+  if(input < 375)  return 2;  
+  if(input < 600)  return 3;  
+  if(input < 800)  return 4;  
+  if(input < 1000) return 5;  
+  return 6;
 };
 
 // Function for scaling potentiometers to panel graphics.
 void potScalingChord(int input){
-
-  int result;
-
-  if(input < 10){
-    chordStructure = 200;
-    chordMultiplier = 7;
+  if (input>=1000) {
+    chordStructure = 1200;
+    chordMultiplier = 1;
   }
-  else if(input < 175){
-    chordStructure = 200;
-    chordMultiplier = 2;
-  }
-  else if(input < 375){
-    chordStructure = 200;
-    chordMultiplier = 4;
-  }
-  else if(input < 600){
+  else if(input < 1000){
     chordStructure = 300;
-    chordMultiplier = 2;
+    chordMultiplier = 4;
   }
   else if(input < 800){
     chordStructure = 400;
     chordMultiplier = 2;
   }
-  else if(input < 1000){
+  else if(input < 600){
     chordStructure = 300;
+    chordMultiplier = 2;
+  }
+  else if(input < 375){
+    chordStructure = 200;
     chordMultiplier = 4;
   }
-  else {
-    chordStructure = 1200;
-    chordMultiplier = 1;
+  else if(input < 175){
+    chordStructure = 200;
+    chordMultiplier = 2;
   }
-
+  else if(input < 10){
+    chordStructure = 200;
+    chordMultiplier = 7;
+  }
 };
 
 // Function for scaling potentiometers to panel graphics.
 int potScaling13(int input){
-
-  int result;
-
-  if(input < 5){
-    result = 0;
-  }
-  else if(input < 30){
-    result = 1;  
-  }
-  else if(input < 130){
-    result = 2;  
-  }
-  else if(input < 230){
-    result = 3;  
-  }
-  else if(input < 350){
-    result = 4;  
-  }
-  else if(input < 430){
-    result = 5;  
-  }
-  else if(input < 570){
-    result = 6;  
-  }
-  else if(input < 650){
-    result = 7;  
-  }
-  else if(input < 750){
-    result = 11;  
-  }
-  else if(input < 850){
-    result = 15;  
-  }
-  else if(input < 950){
-    result = 23;  
-  }
-  else if(input < 1015){
-    result = 31;  
-  }
-  else {
-    result = 63;
-  }
-
-  return result;
+  if(input < 5)  	 	return 0;
+  else if(input < 30)   return 1;  
+  else if(input < 130)  return 2;  
+  else if(input < 230)  return 3;  
+  else if(input < 350)  return 4;  
+  else if(input < 430)  return 5;   
+  else if(input < 570)  return 6;  
+  else if(input < 650)  return 7;  
+  else if(input < 750)  return 11;  
+  else if(input < 850)	return 15;  
+  else if(input < 950)	return 23;  
+  else if(input < 1015)	return 31;  
+  return 63;
+  
 };
