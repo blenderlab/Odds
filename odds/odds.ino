@@ -1,5 +1,6 @@
-/* Sebsongs Modular ODDS | Firmware 1.1 
+/* Sebsongs Modular ODDS | Firmware 1.2 
  * Random generative sequencer that quantise notes to a given scale and chord structure.
+ * Version 1.2 : rewrite code
  */
 
 #include <EEPROM.h>
