@@ -191,13 +191,13 @@ void setup() {
     digitalWrite(gatePin, HIGH);
     delay(50);
     digitalWrite(gatePin, LOW);
-	doCalibration()
+	  doCalibration();
   }
 
 }
 
 void doCalibration(){
-	while true{
+	while (true){
 
 		// Update all analog inputs.
 		rawProb = analogRead(probPin);
@@ -414,7 +414,7 @@ void probeProbability(){
 
 void probeScale(){
 	  // Check if there are movement on the scale potentiometer. Set Scale if there is, OR set Chord structure if SHIFT is held.
-	if(rawScale < prevRawScale - hysteresis || rawScale >= prevRawScale + hysteresis
+	if(rawScale < prevRawScale - hysteresis || rawScale >= prevRawScale + hysteresis)
 	{
 		if(shiftState)
 		{
