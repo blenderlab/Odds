@@ -1,16 +1,13 @@
 ![Sebsongs Modular Euclidean](https://modular.sebsongs.com/wp-content/uploads/2022/04/Odds_cropped-46x300.png)
 
 # Odds
-Firmware for the Sebsongs Modular **Odds** eurorack module sold on [Thonk](https://www.thonk.co.uk/shop/sebsongs-odds/).
+Alternative Firmware for the Sebsongs Modular **Odds** eurorack module sold on [Thonk](https://www.thonk.co.uk/shop/sebsongs-odds/).
 
 ## Background
-This is an original Sebsongs Modular firmware.
+This is fork of the original Sebsongs Modular firmware.
 
-## Modifying the firmware
-The firmware is shared on this github page and anyone is welcome to make modifications for their own use and share it with others.
-
-## Version history
-The first version uploaded to this repo is version 1.1.
+## V1.3 - First TuringMachine Iteration
+- Loop button still loops, but slightly modify the notes according to the Probability pot.
 
 ## Prerequisites for uploading firmware to an Arduino Nano board
 - Install [Arduino IDE 1.8.19](https://www.arduino.cc/en/software). It should work fine with the latest version 2.XX too, but has not been thorougly tested yet.
