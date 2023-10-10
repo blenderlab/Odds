@@ -6,6 +6,10 @@ Alternative Firmware for the Sebsongs Modular **Odds** eurorack module sold on [
 ## Background
 This is fork of the original Sebsongs Modular firmware.
 
+## V1.4 - Second TuringMachine Iteration
+- Bugfix/Improve : initial Loop is still in EEPROM, and sometimes (according to the % knob) a new note is generated (but not stored in the EEPROM). It gives a little humanity to the sequence.
+
+
 ## V1.3 - First TuringMachine Iteration
 - Loop button still loops, but slightly modify the notes according to the Probability pot.
 
